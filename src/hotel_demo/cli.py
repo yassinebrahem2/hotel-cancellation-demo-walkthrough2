@@ -5,7 +5,7 @@ import sys
 from collections.abc import Sequence
 
 from hotel_demo.daily import daily
-from hotel_demo.pipeline import deploy, evaluate, rollback, score, train
+from hotel_demo.pipeline import deploy, evaluate, hold, rollback, score, train
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -48,6 +48,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     # rollback
     subparsers.add_parser("rollback", help="Roll back production to previous version")
+
+    # hold
+    hold_parser = subparsers.add_parser("hold", help="Quarantine a prediction batch")
+    hold_parser.add_argument("--date", required=True, help="Business date YYYY-MM-DD to quarantine")
+    hold_parser.add_argument("--reason", required=True, help="Reason for quarantine")
 
     # score
     score_parser = subparsers.add_parser("score", help="Score bookings for a given date")
