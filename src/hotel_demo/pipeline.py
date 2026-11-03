@@ -178,7 +178,11 @@ def train(cutoff: str | datetime.date, min_child_samples: int | None = None) -> 
 
 
 def evaluate(version: int | str, threshold: float = 0.5) -> dict[str, float]:
-    """Score the held-out 20% for the given model version and log metrics to MLflow."""
+    """Score the held-out 20% for the given model version and log metrics to MLflow.
+    
+    Also writes the standard evaluation record as mlops_agents/evaluation.json artifact
+    on the candidate's tracker run, and as a JSON Lines line in the monitoring results location.
+    """
     uri = tracking_uri()
     mlflow.set_tracking_uri(uri)
     client = MlflowClient(tracking_uri=uri)
@@ -219,6 +223,36 @@ def evaluate(version: int | str, threshold: float = 0.5) -> dict[str, float]:
 
     for k, v in metrics.items():
         client.log_metric(mv.run_id, k, v)
+
+    # Build the standard evaluation record
+    eval_record = {
+        "model_name": MODEL_NAME,
+        "model_version": str(version),
+        "run_id": mv.run_id,
+        "evaluation_timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
+        "threshold": threshold,
+        "eval_rows": len(eval_df),
+        "metrics": metrics,
+        "primary_metric": "pr_auc",
+        "positive_class": 1,
+        "target_column": TARGET,
+    }
+
+    # Write as mlops_agents/evaluation.json artifact on the run
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        json.dump(eval_record, tmp, indent=2)
+        tmp_path = tmp.name
+    client.log_artifact(mv.run_id, tmp_path, artifact_path="mlops_agents")
+    Path(tmp_path).unlink(missing_ok=True)
+
+    # Write as JSON Lines in the monitoring results location
+    monitoring_dir = data_dir() / "monitoring"
+    monitoring_dir.mkdir(parents=True, exist_ok=True)
+    today = datetime.date.today().isoformat()
+    monitoring_file = monitoring_dir / f"{today}.jsonl"
+    with monitoring_file.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(eval_record) + "\n")
 
     return metrics
 
