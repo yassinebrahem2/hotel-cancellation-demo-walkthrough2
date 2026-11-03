@@ -1,4 +1,17 @@
 [[jobs]]
-name = "daily"
+name = "daily-scoring"
 command = "hotel-demo daily --date {date}"
-every = 1
+cron = "0 6 * * *"
+timezone = "UTC"
+
+[[jobs]]
+name = "daily-monitoring"
+command = "hotel-demo daily --date {date}"
+cron = "0 6 * * *"
+timezone = "UTC"
+
+[[jobs]]
+name = "heartbeat"
+command = "curl -sf http://127.0.0.1:57250/api/health/heartbeat || exit 1"
+cron = "*/5 * * * *"
+timezone = "UTC"
